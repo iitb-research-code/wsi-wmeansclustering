@@ -44,7 +44,7 @@ bbox_dir = 'test-output/output'
 
 text_dir = "test-output/txt"
 
-input_dir = "test-images/"
+input_dir = "input_dir"
 
 # Define the object class label
 object_class = "0"
