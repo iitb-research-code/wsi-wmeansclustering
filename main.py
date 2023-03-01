@@ -44,5 +44,7 @@ newds.create_dataset('bboxes',selected_images_bboxes, compression="gzip")
 newds.close()
 
 
+
+
 #clustering
-#clustering(selected_images_bboxes)
+#afterclustering(selected_images_bboxes)
