@@ -1,6 +1,13 @@
 import h5py
 import os
 from roi_selection import selectBrownScoreBasedROIs
+from PIL import Image
+import numpy as np
+from skimage.color import rgb2hed, hed2rgb
+from utils import convert_yolo_bboxes
+from matplotlib import pyplot as plt
+import cv2
+
 #some global configs
 #lysto h5 file
 lystoh5file='input_dir/training.h5'
@@ -24,25 +31,20 @@ if(os.path.isfile(lystoh5file)==False):
 
 
 ds=h5py.File(lystoh5file, 'r')
-img = ds['x']
+selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
+newds=h5py.File(susbseth5file, 'w')
+subdataset=newds.create_dataset('x',data=selected_imgs)
+indWeakROIs=newds.create_group('indROIs')
 
+#groups for individual bboxes
 
+for i, img in enumerate(selected_imgs):
+    forim=indWeakROIs.create_group('img_'+str(i))
+    selected_weak_bboxes=selectBrownScoreBasedROIs(img,brown_score_threshold)
+    forim.create_dataset('bboxes',data=selected_weak_bboxes)
+    print('hi')
 
-#get the number of images
-selected_images = img[:numofimages,:,:,:]
-
-selected_images_bboxes=[]
-
-for img in selected_images:
-    #weak supervision roiselection
-    bboxes=selectBrownScoreBasedROIs(img,brown_score_threshold)
-    selected_images_bboxes.append(bboxes)
-
-newds = h5py.File(susbseth5file, 'w')  
-newds.create_dataset('x',selected_images, compression="gzip")
-newds.create_dataset('bboxes',selected_images_bboxes, compression="gzip")
-newds.close()
-
+    
 
 
 

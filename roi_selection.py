@@ -27,7 +27,17 @@ import matplotlib.pyplot as plt
 
 from skimage import data
 from skimage.color import rgb2hed, hed2rgb
-from image_preprocessing import imagePreProcessing,imageProcessing2
+
+def imagePreProcessing(imgarr):
+    #Noise Removing
+    image = cv2.fastNlMeansDenoisingColored(imgarr,None,10,10,7,21)
+    #Gaussian Blur
+    gaussian_3 = cv2.GaussianBlur(image, (9,9), 10.0) #unblur
+    image = cv2.addWeighted(image, 1.5, gaussian_3, -0.5, 0, image)
+        #Laplacian Filter
+        #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) #filter
+        #image = cv2.filter2D(image, -1, kernel)
+    return image
 
 def get_brown_score(im, x1, y1, x2, y2):
 
@@ -84,85 +94,35 @@ def selectBrownScoreBasedROIs(img,brown_score_threshold):
     input img in nparray
     output list of bboxes
     """
-    #crop
-    img = img[16:-16, 16:-16,:]
+    ihc_rgb=img
+    PIL_image=Image.fromarray(np.uint8(img)).convert('RGB')
+    ihc_hed = rgb2hed(ihc_rgb)
 
-    img=imagePreProcessing(img)
-    otsu_threshold, image_result = cv2.threshold(
-         img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    
-    thresh2 = 255-image_result
+     # Create an RGB image for the DAB stain
+    null = np.zeros_like(ihc_hed[:, :, 0])
+    ihc_d = hed2rgb(np.stack((null, null, ihc_hed[:, :, 2]), axis=-1))
 
-  
+    img_height, img_width, channels = ihc_d.shape
+    preprocessedimg=imagePreProcessing(img)
+    image_temp = (ihc_d*255).astype('uint8')
+   
+        # cv2.cvtColor is applied over the
+        # image input with applied parameters
+        # to convert the image in grayscale 
+    image_grey = cv2.cvtColor(image_temp, cv2.COLOR_BGR2GRAY)
 
-    output = cv2.connectedComponentsWithStats(thresh2)
-    (numLabels, labels, stats, centroids) = output
-    mask = np.zeros(thresh2.shape, dtype="uint8")
+    bounding_boxes1=LF2(image_grey,preprocessedimg)
+    bounding_boxes_b = bounding_boxes1
 
-    # loop over the number of unique connected component labels, skipping
-    # over the first label (as label zero is the background)
-    for i in range(1, numLabels):
-        # extract the connected component statistics for the current label
-        x = stats[i, cv2.CC_STAT_LEFT]
-        y = stats[i, cv2.CC_STAT_TOP]
-        w = stats[i, cv2.CC_STAT_WIDTH]
-        h = stats[i, cv2.CC_STAT_HEIGHT]
-        area = stats[i, cv2.CC_STAT_AREA]
+    brown_scores = get_brown_scores(ihc_d, bounding_boxes_b)
 
-
-        # consider the contour properties: aspect ratio, extent, or solidity
-        aspect_ratio = float(w) / h
-        extent = float(area) / (w * h)
-        #solidity = float(area) / cv2.contourArea(cv2.findContours(labels == i, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)[0][0])
-    
-    
-        # ensure the width, height, and area are all neither too small
-        # nor too big
-        #keepWidth = w > 5 and w < 30
-        #keepHeight = h > 5 and h < 30
-        #keepArea = area > 10
-
-        keepWidth = w > 10 and w < 88
-        keepHeight = h > 10 and h < 88
-        keepArea = area > 200
-
-        # consider the aspect ratio, extent, and solidity of the contours
-        keepAspectRatio = aspect_ratio > 0.2 and aspect_ratio < 1.8
-        keepExtent = extent > 0.3 and extent < 0.8
-        #keepSolidity = solidity > 0.7
-        # ensure the connected component we are examining passes all
-        # three tests
-        if all((keepWidth, keepHeight, keepArea, keepAspectRatio, keepExtent)):
-            # construct a mask for the current connected component and
-            # then take the bitwise OR with the mask       
-            componentMask = (labels == i).astype("uint8") * 1
-            mask = cv2.bitwise_or(mask, componentMask)
-
-
+    bounding_boxes = []
+    for j in range(len(bounding_boxes_b)):
         
-        contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = contours[0] if len(contours) == 2 else contours[1]
-        colour = (255, 0, 0)
-        thickness = 1
-        i = 0
-        
-        bounding_boxes = []
-       # Iterate through the contours and find bounding boxes
-        for contour in contours:
-            x, y, w, h = cv2.boundingRect(contour)
-            bounding_boxes.append([x, y, x+w, y+h])
-    
-    #get brownscores for bboxes
-    brownscores=get_brown_scores(img,bounding_boxes)
+        if brown_scores[j] > brown_score_threshold:
+            bounding_boxes.append(bounding_boxes_b[j])
 
-    filtered_ounding_boxes=[]
-    for j in range(len(bounding_boxes)):
-        
-        if brownscores[j] > brown_score_threshold:
-            filtered_ounding_boxes.append(bounding_boxes[j])
-        
-    return filtered_ounding_boxes
-
+    return bounding_boxes
 
 def LF2(c,d): 
     
@@ -177,7 +137,7 @@ def LF2(c,d):
     #image_result = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 81, 40)
 
     otsu_threshold, image_result = cv2.threshold(
-         blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU,)
+         blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
     thresh2 = 255-image_result
 
@@ -245,4 +205,4 @@ def LF2(c,d):
             cv2.rectangle(result, (x, y), (x+w, y+h), colour, thickness)
   
 
-    return result, bounding_boxes
+    return bounding_boxes

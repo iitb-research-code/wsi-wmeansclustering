@@ -3,6 +3,7 @@ output/*
 results/*
 test-output/*
 yolo-txt/*
+archive/*
 
 __pycache__/brown_score.cpython-39.pyc
 __pycache__/image_preprocessing.cpython-39.pyc
