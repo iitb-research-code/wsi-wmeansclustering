@@ -9,7 +9,7 @@ from torchvision.models.vgg import VGG
 import numpy as np
 
 
-d_type     = 'd1'     # distance type
+d_type     = 'd2'     # distance type
 
 
 

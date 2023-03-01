@@ -6,7 +6,7 @@ visualizationdir='output/visual'
 lystoh5file='input_dir/training.h5'
 susbseth5file='output/subset.h5'
 #number of images
-numofimages=10
+numofimages=50
 brown_score_threshold=0.09
 
 VGG_model  = 'vgg19'  # model type
