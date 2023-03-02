@@ -2,8 +2,20 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from PIL import Image
+from PIL import Image,ImageDraw
 import math
+
+def visualizeWeakbboxes(h5pyfile,outputdir):
+    for i,imgname in enumerate(h5pyfile['indROIs'].keys()):
+        im_arr=h5pyfile['x'][i]
+        im=Image.fromarray(im_arr)
+        drawim=ImageDraw.Draw(im)
+        for bbox in h5pyfile['indROIs'][imgname]['bboxes'][:]:
+            x1, y1, x2, y2 = bbox
+            #print(bbox)
+            drawim.rectangle([(x1,y1),(x2,y2)],outline=(255,0,10),width=3)
+        im.save(os.path.join(outputdir,imgname+'.jpg'))
+        
 
 
 def savclusterimg(clusterImgDir):

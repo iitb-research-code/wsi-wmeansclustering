@@ -11,6 +11,7 @@ from vggnet import VGGNet
 import torch
 from config import *
 from sklearn.cluster import KMeans
+from utils import visualizeWeakbboxes
 
 vgg_model = VGGNet(requires_grad=False, model=VGG_model)
 vgg_model.eval()
@@ -33,6 +34,9 @@ def weakLabeling(selected_imgs):
         for roi in selected_weak_bboxes:
             x1, y1, x2, y2 = roi
             cropim=im.crop((x1, y1, x2, y2))
+            #if total tize is less than 512 resize it to 23*23
+            if((x2-x1)*(y2-y1)<3000):
+                cropim=cropim.resize((35,35))
             cropim=np.array(cropim)
             bgrimg = cropim[:, :, ::-1]  # switch to BGR
             bgrimg = np.transpose(bgrimg, (2, 0, 1)) / 255.
@@ -44,12 +48,13 @@ def weakLabeling(selected_imgs):
                 if use_gpu:
                     inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).cuda().float())
                 else:
-                    inputs = torch.autograd.Variable(torch.from_numpy(img).float())
+                    inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).float())
                 d_hist = vgg_model(inputs)[pick_layer]
                 d_hist = np.sum(d_hist.data.cpu().numpy(), axis=0)
                 d_hist /= np.sum(d_hist)  # normalize
                 feature_for_bboxes.append(d_hist)
-            except:
+            except Exception as e:
+                print('exception in getting features',e)
                 pass
         forim.create_dataset('bboxes',data=selected_weak_bboxes)
         forim.create_dataset('features',data=feature_for_bboxes)
@@ -72,9 +77,16 @@ selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
 #if weaklabeling not done, please do
 if(os.path.isfile(susbseth5file)==False):
     weakLabeling(selected_imgs)
+else:
+    weakLabeling(selected_imgs)
+
 
 #check if already a subset file exists
 newds=h5py.File(susbseth5file, 'r')
+
+#visualize weaklabelings
+visualizeWeakbboxes(newds,'output/visual/weaklabels4patch')
+exit()
 all_weak_bboxes=[]
 all_weak_features=[]
 
@@ -92,7 +104,7 @@ all_weak_features = np.array(all_weak_features)
    
     
 # Perform K-means clustering on the feature vectors
-labels = KMeans(n_clusters=2, random_state=1).fit_predict(all_weak_features)
+labels = KMeans(n_clusters=2, random_state=0).fit_predict(all_weak_features)
 
 #save clusters for checking- visual
 if not os.path.exists(os.path.join(visualizationdir,'cluster_0')):

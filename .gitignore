@@ -10,3 +10,4 @@ __pycache__/image_preprocessing.cpython-39.pyc
 __pycache__/roi_selection.cpython-39.pyc
 __pycache__/config.cpython-39.pyc
 .gitignore
+sample.h5
