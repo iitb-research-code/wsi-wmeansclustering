@@ -19,9 +19,10 @@ use_gpu = torch.cuda.is_available()
 if use_gpu:
     vgg_model = vgg_model.cuda()
 
-def weakLabeling(selected_imgs):
+def weakLabeling(selected_imgs,selected_labels):
     newds=h5py.File(susbseth5file, 'w')
     subdataset=newds.create_dataset('x',data=selected_imgs)
+    subdataset1=newds.create_dataset('y',data=selected_labels)
     indWeakROIs=newds.create_group('indROIs')
 
     #groups for individual bboxes
@@ -73,12 +74,12 @@ if(os.path.isfile(lystoh5file)==False):
 
 ds=h5py.File(lystoh5file, 'r')
 selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
-
+selected_labels=ds['y'][:numofimages]
 #if weaklabeling not done, please do
 if(os.path.isfile(susbseth5file)==False):
-    weakLabeling(selected_imgs)
+    weakLabeling(selected_imgs,selected_labels)
 else:
-    weakLabeling(selected_imgs)
+    weakLabeling(selected_imgs,selected_labels)
 
 
 #check if already a subset file exists

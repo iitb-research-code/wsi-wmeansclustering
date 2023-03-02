@@ -2,10 +2,12 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from PIL import Image,ImageDraw
+from PIL import Image,ImageDraw, ImageFont
 import math
 
 def visualizeWeakbboxes(h5pyfile,outputdir):
+    font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf", 28, encoding="unic")
+
     for i,imgname in enumerate(h5pyfile['indROIs'].keys()):
         im_arr=h5pyfile['x'][i]
         im=Image.fromarray(im_arr)
@@ -14,6 +16,7 @@ def visualizeWeakbboxes(h5pyfile,outputdir):
             x1, y1, x2, y2 = bbox
             #print(bbox)
             drawim.rectangle([(x1,y1),(x2,y2)],outline=(255,0,10),width=3)
+            drawim.text((1,1,1,1),str(h5pyfile['y'][i]),fill=(255,0,109),font=font)
         im.save(os.path.join(outputdir,imgname+'.jpg'))
         
 

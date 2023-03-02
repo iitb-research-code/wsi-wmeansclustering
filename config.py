@@ -8,7 +8,7 @@ lystoh5file='input_dir/training.h5'
 susbseth5file='output/subset.h5'
 #number of images
 numofimages=10
-brown_score_threshold=0.09
+brown_score_threshold=0.2
 
 VGG_model  = 'vgg19'  # model type
 means = np.array([103.939, 116.779, 123.68]) / 255. # mean of three channels in the order of BGR
