@@ -4,6 +4,7 @@ import numpy as np
 import os
 from PIL import Image
 import math
+import os
 
 def savclusterimg(clusterImgDir):
     num_imgs=len(os.listdir(clusterImgDir))
