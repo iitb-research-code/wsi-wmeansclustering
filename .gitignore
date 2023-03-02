@@ -8,3 +8,5 @@ archive/*
 __pycache__/brown_score.cpython-39.pyc
 __pycache__/image_preprocessing.cpython-39.pyc
 __pycache__/roi_selection.cpython-39.pyc
+__pycache__/config.cpython-39.pyc
+.gitignore

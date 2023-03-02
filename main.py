@@ -4,7 +4,7 @@ from roi_selection import selectBrownScoreBasedROIs
 from PIL import Image
 import numpy as np
 from skimage.color import rgb2hed, hed2rgb
-from utils import convert_yolo_bboxes
+from utils import savclusterimg
 from matplotlib import pyplot as plt
 import cv2
 from vggnet import VGGNet
@@ -94,7 +94,7 @@ all_weak_features = np.array(all_weak_features)
 # Perform K-means clustering on the feature vectors
 labels = KMeans(n_clusters=2, random_state=1).fit_predict(all_weak_features)
 
-#save clusters for checking
+#save clusters for checking- visual
 if not os.path.exists(os.path.join(visualizationdir,'cluster_0')):
     os.makedirs(os.path.join(visualizationdir,'cluster_0'))
 if not os.path.exists(os.path.join(visualizationdir,'cluster_1')):
@@ -105,6 +105,8 @@ for i,imgname in enumerate(newds['indROIs'].keys()):
     drawim=newds['x'][i]
     drawim=Image.fromarray(drawim)
     for bbox in newds['indROIs'][imgname]['bboxes'][:]:
+        if lcount >= len(labels):
+            continue
         x1, y1, x2, y2 = bbox
         cropim=drawim.crop((x1, y1, x2, y2))
         if(labels[lcount]==0):
@@ -112,8 +114,10 @@ for i,imgname in enumerate(newds['indROIs'].keys()):
         elif(labels[lcount]==1):
             cropim.save(os.path.join(visualizationdir,'cluster_1',imgname+'_'+str(lcount)+'.png'))
         lcount+=1
-            
-print('hi')
+
+
+savclusterimg(os.path.join(visualizationdir,'cluster_0'))
+savclusterimg(os.path.join(visualizationdir,'cluster_1'))
     
 
 

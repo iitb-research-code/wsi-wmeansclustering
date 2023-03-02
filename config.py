@@ -1,4 +1,5 @@
 import numpy as np
+import h5py
 
 visualizationdir='output/visual'
 #some global configs
@@ -6,7 +7,7 @@ visualizationdir='output/visual'
 lystoh5file='input_dir/training.h5'
 susbseth5file='output/subset.h5'
 #number of images
-numofimages=50
+numofimages=10
 brown_score_threshold=0.09
 
 VGG_model  = 'vgg19'  # model type
@@ -14,3 +15,4 @@ means = np.array([103.939, 116.779, 123.68]) / 255. # mean of three channels in 
 # configs for histogram
 pick_layer = 'avg'    # extract feature of this layer
 
+h5py.get_config().track_order=True
