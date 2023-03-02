@@ -87,7 +87,7 @@ newds=h5py.File(susbseth5file, 'r')
 
 #visualize weaklabelings
 visualizeWeakbboxes(newds,'output/visual/weaklabels4patch')
-exit()
+#exit()
 all_weak_bboxes=[]
 all_weak_features=[]
 
