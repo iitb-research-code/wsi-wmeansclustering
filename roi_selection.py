@@ -100,8 +100,8 @@ def selectBrownScoreBasedROIs(img,brown_score_threshold):
 
      # Create an RGB image for the DAB stain
     null = np.zeros_like(ihc_hed[:, :, 0])
-    ihc_d = hed2rgb(np.stack((ihc_hed[:, :, 0], null, null), axis=-1))
-    #ihc_d = hed2rgb(np.stack((null, null, ihc_hed[:, :, 2]), axis=-1))
+    #ihc_d = hed2rgb(np.stack((ihc_hed[:, :, 0], null, null), axis=-1))
+    ihc_d = hed2rgb(np.stack((null, null, ihc_hed[:, :, 2]), axis=-1))
 
     img_height, img_width, channels = ihc_d.shape
     
@@ -122,8 +122,8 @@ def selectBrownScoreBasedROIs(img,brown_score_threshold):
         x1,y1,x2,y2=bounding_boxes_b[j]
         h=y2-y1
         w=x2-x1
-        if(w>=14 and w<=35 ) and (h>=14 and h<=35 ):
-            brown_score_threshold=0.005
+        if(w>=14 and w<=50 ) and (h>=14 and h<=50 ):
+            brown_score_threshold=0.009
             print(brown_scores[j])
             if brown_scores[j] > brown_score_threshold:
                 

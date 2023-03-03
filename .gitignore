@@ -11,3 +11,9 @@ __pycache__/roi_selection.cpython-39.pyc
 __pycache__/config.cpython-39.pyc
 .gitignore
 sample.h5
+__pycache__/config.cpython-39.pyc
+__pycache__/utils.cpython-39.pyc
+__pycache__/vggnet.cpython-39.pyc
+__pycache__/config.cpython-39.pyc
+__pycache__/utils.cpython-39.pyc
+__pycache__/vggnet.cpython-39.pyc

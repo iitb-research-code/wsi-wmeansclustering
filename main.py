@@ -105,7 +105,7 @@ all_weak_features = np.array(all_weak_features)
    
     
 # Perform K-means clustering on the feature vectors
-labels = KMeans(n_clusters=2, random_state=0).fit_predict(all_weak_features)
+labels = KMeans(n_clusters=4, random_state=0).fit_predict(all_weak_features)
 
 #save clusters for checking- visual
 if not os.path.exists(os.path.join(visualizationdir,'cluster_0')):
@@ -131,6 +131,8 @@ for i,imgname in enumerate(newds['indROIs'].keys()):
 
 savclusterimg(os.path.join(visualizationdir,'cluster_0'))
 savclusterimg(os.path.join(visualizationdir,'cluster_1'))
+savclusterimg(os.path.join(visualizationdir,'cluster_2'))
+savclusterimg(os.path.join(visualizationdir,'cluster_3'))
     
 
 
