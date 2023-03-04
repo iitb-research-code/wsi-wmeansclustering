@@ -1,3 +1,4 @@
+from config import *
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,27 +6,71 @@ import os
 from PIL import Image,ImageDraw, ImageFont
 import math
 
-def visualizeWeakbboxes(h5pyfile,outputdir):
+from roi_selection import selectBrownScoreBasedROIs
+import torch
+
+'''
+used to visualize selected weakboxes for each path
+input:
+susbseth5file- where the h5 for weaklabels are present
+weakpatchoutputdir- where to store patch images
+both given in config.py
+output:
+write the patch(for each patch used in exp) with weak bboxes and label count to weakpatchoutputdir
+'''
+def visualizeWeakbboxes():
+    #read already create weaklabels
+    newds=h5py.File(susbseth5file, 'r')
+    if not os.path.exists(weakpatchoutputdir):
+        os.makedirs(weakpatchoutputdir)
     font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf", 28, encoding="unic")
 
-    for i,imgname in enumerate(h5pyfile['indROIs'].keys()):
-        im_arr=h5pyfile['x'][i]
+    for i,imgname in enumerate(newds['indROIs'].keys()):
+        im_arr=newds['x'][i]
         im=Image.fromarray(im_arr)
         drawim=ImageDraw.Draw(im)
-        for bbox in h5pyfile['indROIs'][imgname]['bboxes'][:]:
+        for bbox in newds['indROIs'][imgname]['bboxes'][:]:
             x1, y1, x2, y2 = bbox
             #print(bbox)
             drawim.rectangle([(x1,y1),(x2,y2)],outline=(255,0,10),width=3)
-            drawim.text((1,1,1,1),str(h5pyfile['y'][i]),fill=(255,0,109),font=font)
-        im.save(os.path.join(outputdir,imgname+'.jpg'))
+            drawim.text((1,1,1,1),str(newds['y'][i]),fill=(255,0,109),font=font)
+        im.save(os.path.join(weakpatchoutputdir,imgname+'.jpg'))
         
+def visualizeIndividualClusterinDir(newds,labels):
+    for cluster_n in range(n_clusters):
+        if not os.path.exists(os.path.join(visualizationdir,'cluster_'+str(cluster_n))):
+            os.makedirs(os.path.join(visualizationdir,'cluster_'+str(cluster_n)))
+    
 
 
-def savclusterimg(clusterImgDir):
+    lcount=0
+    for i,imgname in enumerate(newds['indROIs'].keys()):
+        drawim=newds['x'][i]
+        drawim=Image.fromarray(drawim)
+        for bbox in newds['indROIs'][imgname]['bboxes'][:]:
+            if lcount >= len(labels):
+                continue
+            x1, y1, x2, y2 = bbox
+            cropim=drawim.crop((x1, y1, x2, y2))
+            cropim.save(os.path.join(visualizationdir,'cluster_'+str(labels[lcount]),imgname+'_'+str(lcount)+'.png'))
+            lcount+=1
+    
+    for cluster_n in range(n_clusters):
+        visualizeclusterimgs(os.path.join(visualizationdir,'cluster_'+str(cluster_n)))
+    
+
+def visualizeclusterimgs(clusterImgDir):
     num_imgs=len(os.listdir(clusterImgDir))
-    cols=4
-    rows=math.ceil(num_imgs/4)
+    if(num_imgs>4):
+        cols=4
+        rows=math.ceil(num_imgs/4)
+    else:
+        rows=2
+        cols=num_imgs
+
+    
     fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=(200,200))
+    
     img_count = 0
     img_arr = []
     for imf in os.listdir(clusterImgDir):
@@ -53,3 +98,57 @@ def convert_yolo_bboxes(bounding_boxes,img_width,img_height):
         width = float(w) / img_width
         height = float(h) / img_height
         yolo_boxes.append([center_x, center_y, width, height])
+
+
+'''
+    given a set of images it identifies bboxes based on features of stains of images
+
+    input:
+    selected_imgs- np nest arrays of list of images
+    selected_labels- np array of labels (both follow lysto fomat specified in
+    https://lysto.grand-challenge.org/
+    susbseth5file- path to store the h5file. given in config.py
+    )
+    output:
+    susbseth5file- a h5 file in the given path
+'''
+def weakLabeling(selected_imgs,selected_labels):
+    newds=h5py.File(susbseth5file, 'w')
+    subdataset=newds.create_dataset('x',data=selected_imgs)
+    subdataset1=newds.create_dataset('y',data=selected_labels)
+    indWeakROIs=newds.create_group('indROIs')
+
+    #groups for individual bboxes
+
+    for i, img in enumerate(selected_imgs):
+        forim=indWeakROIs.create_group('img_'+str(i))
+        selected_weak_bboxes=selectBrownScoreBasedROIs(img,brown_score_threshold)
+        im=Image.fromarray(img)
+        feature_for_bboxes=[]
+        for roi in selected_weak_bboxes:
+            x1, y1, x2, y2 = roi
+            cropim=im.crop((x1, y1, x2, y2))
+            #if total tize is less than 512 resize it to 23*23
+            if((x2-x1)*(y2-y1)<3000):
+                cropim=cropim.resize((35,35))
+            cropim=np.array(cropim)
+            bgrimg = cropim[:, :, ::-1]  # switch to BGR
+            bgrimg = np.transpose(bgrimg, (2, 0, 1)) / 255.
+            bgrimg[0] -= means[0]  # reduce B's mean
+            bgrimg[1] -= means[1]  # reduce G's mean
+            bgrimg[2] -= means[2]  # reduce R's mean
+            bgrimg = np.expand_dims(bgrimg, axis=0)
+            try:
+                if use_gpu:
+                    inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).cuda().float())
+                else:
+                    inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).float())
+                d_hist = vgg_model(inputs)[pick_layer]
+                d_hist = np.sum(d_hist.data.cpu().numpy(), axis=0)
+                d_hist /= np.sum(d_hist)  # normalize
+                feature_for_bboxes.append(d_hist)
+            except Exception as e:
+                print('exception in getting features',e)
+                pass
+        forim.create_dataset('bboxes',data=selected_weak_bboxes)
+        forim.create_dataset('features',data=feature_for_bboxes)
