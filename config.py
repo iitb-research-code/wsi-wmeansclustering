@@ -11,7 +11,7 @@ from vggnet import VGGNet
 lystoh5file=os.path.join('input_dir','training.h5')
 
 experiment_name='test'
-
+num_of_epochs=3
 
 outputdir=os.path.join('output',experiment_name)
 
@@ -29,6 +29,9 @@ susbseth5file=os.path.join(outputdir,'subset.h5')
 numofimages=10
 brown_score_threshold=0.2
 n_clusters=4
+
+#yolo
+yolodir=os.path.join(outputdir,'yolotrain')
 
 
 VGG_model  = 'vgg19'  # model type

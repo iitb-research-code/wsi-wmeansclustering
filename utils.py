@@ -150,5 +150,52 @@ def weakLabeling(selected_imgs,selected_labels):
             except Exception as e:
                 print('exception in getting features',e)
                 pass
+
+        bboxes_from_yolo=fromyolo(img)
+        
+
+
         forim.create_dataset('bboxes',data=selected_weak_bboxes)
         forim.create_dataset('features',data=feature_for_bboxes)
+
+def saveimgsforYolo(selected_cluster_n,labels):
+    newds=h5py.File(susbseth5file, 'r')
+    shutil.rmtree(os.path.join(yolodir))
+    yolodirimages=os.path.join(yolodir,'images')
+    os.makedirs(yolodirimages)
+    yolodirtxt=os.path.join(yolodir,'txt')
+    os.makedirs(yolodirtxt)
+    
+    lcount=0
+    for i,imgname in enumerate(newds['indROIs'].keys()):
+        drawim=newds['x'][i]
+        drawim=Image.fromarray(drawim)
+        imgSaved=False
+        bounding_boxes=[]
+        for bbox in newds['indROIs'][imgname]['bboxes'][:]:
+            if lcount >= len(labels):
+                continue
+            if(labels[lcount]==selected_cluster_n):
+                if(not imgSaved):
+                    imgSaved=True
+                    #saveimage
+                    drawim.save(os.path.join(yolodirimages,imgname+'.jpg'))
+                bounding_boxes.append(bbox)
+            lcount+=1
+        if(imgSaved):
+            # Define the path to the text file that will contain the YOLO format annotations
+            txt_file = os.path.join(yolodirtxt, imgname+'.txt')
+             # Open the text file for writing
+            with open(txt_file, "w") as f:
+        # Loop over the bounding box coordinates
+                for bbox in bounding_boxes:
+            # Convert the bounding box coordinates to YOLO format
+                    x_center, y_center, w, h = bbox
+                    x_yolo = x_center
+                    y_yolo = y_center
+                    w_yolo = w
+                    h_yolo = h
+            
+            # Write the YOLO format annotation to the text file
+                    f.write(f"0 {x_yolo} {y_yolo} {w_yolo} {h_yolo}\n")
+        
