@@ -123,8 +123,8 @@ def selectBrownScoreBasedROIs(img,brown_score_threshold):
         h=y2-y1
         w=x2-x1
         if(w>=14 and w<=50 ) and (h>=14 and h<=50 ):
-            brown_score_threshold=0.009
-            print(brown_scores[j])
+            
+            #print(brown_scores[j])
             if brown_scores[j] > brown_score_threshold:
                 
                 bounding_boxes.append(bounding_boxes_b[j])

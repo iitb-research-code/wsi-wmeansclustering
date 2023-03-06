@@ -27,8 +27,8 @@ weakpatchoutputdir=os.path.join(visualizationdir,'weakpatch')
 susbseth5file=os.path.join(outputdir,'subset.h5')
 #number of images
 numofimages=10
-brown_score_threshold=0.2
-n_clusters=4
+brown_score_threshold=0.009
+n_clusters=2
 
 #yolo
 yolodir=os.path.join(outputdir,'yolotrain')

@@ -35,14 +35,12 @@ def visualizeWeakbboxes():
             drawim.rectangle([(x1,y1),(x2,y2)],outline=(255,0,10),width=3)
             drawim.text((1,1,1,1),str(newds['y'][i]),fill=(255,0,109),font=font)
         im.save(os.path.join(weakpatchoutputdir,imgname+'.jpg'))
+    newds.close()
         
 def visualizeIndividualClusterinDir(newds,labels):
     for cluster_n in range(n_clusters):
         if not os.path.exists(os.path.join(visualizationdir,'cluster_'+str(cluster_n))):
             os.makedirs(os.path.join(visualizationdir,'cluster_'+str(cluster_n)))
-    
-
-
     lcount=0
     for i,imgname in enumerate(newds['indROIs'].keys()):
         drawim=newds['x'][i]
@@ -151,16 +149,18 @@ def weakLabeling(selected_imgs,selected_labels):
                 print('exception in getting features',e)
                 pass
 
-        bboxes_from_yolo=fromyolo(img)
+        #bboxes_from_yolo=fromyolo(img)
         
 
 
         forim.create_dataset('bboxes',data=selected_weak_bboxes)
         forim.create_dataset('features',data=feature_for_bboxes)
+    newds.close()
 
 def saveimgsforYolo(selected_cluster_n,labels):
     newds=h5py.File(susbseth5file, 'r')
-    shutil.rmtree(os.path.join(yolodir))
+    if(os.path.isdir(yolodir)):
+        shutil.rmtree(os.path.join(yolodir))
     yolodirimages=os.path.join(yolodir,'images')
     os.makedirs(yolodirimages)
     yolodirtxt=os.path.join(yolodir,'txt')
@@ -168,6 +168,7 @@ def saveimgsforYolo(selected_cluster_n,labels):
     
     lcount=0
     for i,imgname in enumerate(newds['indROIs'].keys()):
+        #print(len(newds['x']))
         drawim=newds['x'][i]
         drawim=Image.fromarray(drawim)
         imgSaved=False
@@ -198,4 +199,6 @@ def saveimgsforYolo(selected_cluster_n,labels):
             
             # Write the YOLO format annotation to the text file
                     f.write(f"0 {x_yolo} {y_yolo} {w_yolo} {h_yolo}\n")
+    newds.close()
+    
         

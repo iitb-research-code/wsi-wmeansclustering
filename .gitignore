@@ -15,9 +15,5 @@ __pycache__/config.cpython-39.pyc
 __pycache__/utils.cpython-39.pyc
 __pycache__/vggnet.cpython-39.pyc
 __pycache__/config.cpython-39.pyc
-__pycache__/utils.cpython-39.pyc
-__pycache__/vggnet.cpython-39.pyc
-__pycache__/config.cpython-39.pyc
-__pycache__/utils.cpython-39.pyc
-__pycache__/vggnet.cpython-39.pyc
-__pycache__/utils.cpython-39.pyc
+
+utils.py

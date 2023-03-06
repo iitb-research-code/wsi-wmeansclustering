@@ -36,9 +36,9 @@ for i in range(num_of_epochs):
         weakLabeling(selected_imgs,selected_labels)
 
 
-    #read already create weaklabels
+   
+    
     newds=h5py.File(susbseth5file, 'r')
-
     #visualize weaklabelings
     visualizeWeakbboxes()
 
@@ -63,6 +63,7 @@ for i in range(num_of_epochs):
 
     #save clusters for checking- visual
     visualizeIndividualClusterinDir(newds,labels)
+    newds.close()
 
     #
     print('There are ',n_clusters,' clusters.')
@@ -71,9 +72,10 @@ for i in range(num_of_epochs):
 
     #given images as x ROIS for each x as indROIs, labels in the same
     #order save the images and bboxes for yolo training
+    
     saveimgsforYolo(selected_cluster_n,labels)
 
     #train on yolo
-
+    
     #infer on yolo
 
