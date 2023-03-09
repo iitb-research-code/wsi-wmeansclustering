@@ -4,12 +4,15 @@ import os
 from PIL import Image
 import numpy as np
 from skimage.color import rgb2hed, hed2rgb
-from utils import visualizeclusterimgs
+from wc_utils import visualizeclusterimgs
 from matplotlib import pyplot as plt
 import cv2
 import torch
 from sklearn.cluster import KMeans
-from utils import visualizeWeakbboxes, weakLabeling, visualizeIndividualClusterinDir, saveimgsforYolo
+from wc_utils import visualizeWeakbboxes, weakLabeling, visualizeIndividualClusterinDir, saveimgsforYolo
+ #train on yolo
+from wc_utils import trainyolo
+import os, shutil, random
 
 
 #load lysto dataset
@@ -32,8 +35,8 @@ for i in range(num_of_epochs):
     #if weaklabeling not done, please do
     if(os.path.isfile(susbseth5file)==False):
         weakLabeling(selected_imgs,selected_labels)
-    else:
-        weakLabeling(selected_imgs,selected_labels)
+    #else:
+        #yoloLabeling(selected_imgs,selected_labels)
 
 
    
@@ -45,12 +48,12 @@ for i in range(num_of_epochs):
     all_weak_bboxes=[]
     all_weak_features=[]
 
-    for i in newds['indROIs'].keys():
-        for j in newds['indROIs'][i]['bboxes'][:]:
+    for roi in newds['indROIs'].keys():
+        for j in newds['indROIs'][roi]['bboxes'][:]:
             all_weak_bboxes.append(j)
 
-    for i in newds['indROIs'].keys():
-        for j in newds['indROIs'][i]['features'][:]:
+    for roi in newds['indROIs'].keys():
+        for j in newds['indROIs'][roi]['features'][:]:
             all_weak_features.append(j)
 
 
@@ -68,7 +71,7 @@ for i in range(num_of_epochs):
     #
     print('There are ',n_clusters,' clusters.')
     print('Each of them is save @,',visualizationdir)
-    selected_cluster_n=int(input('Choose one that best represents the group'))
+    selected_cluster_n=int(input('Choose one that best represents the group: \n'))
 
     #given images as x ROIS for each x as indROIs, labels in the same
     #order save the images and bboxes for yolo training
@@ -76,6 +79,7 @@ for i in range(num_of_epochs):
     saveimgsforYolo(selected_cluster_n,labels)
 
     #train on yolo
+    trainyolo(i)
     
     #infer on yolo
 

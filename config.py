@@ -26,13 +26,17 @@ weakpatchoutputdir=os.path.join(visualizationdir,'weakpatch')
 
 susbseth5file=os.path.join(outputdir,'subset.h5')
 #number of images
-numofimages=10
-brown_score_threshold=0.009
+numofimages=100
+brown_score_threshold=0
 n_clusters=2
 
 #yolo
 yolodir=os.path.join(outputdir,'yolotrain')
+yolodirimages=os.path.join(yolodir,'images')
+yolodirtxt=os.path.join(yolodir,'txt')
+extension_allowed = '.jpg'
 
+split_percentage = 90   
 
 VGG_model  = 'vgg19'  # model type
 means = np.array([103.939, 116.779, 123.68]) / 255. # mean of three channels in the order of BGR
