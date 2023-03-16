@@ -82,4 +82,6 @@ for i in range(num_of_epochs):
     trainyolo(i)
     
     #infer on yolo
+    img_path = "../wsi-wmeansclustering/output/test/yolotrain/images"
+    yolodetection(i,img_path)
 
