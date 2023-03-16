@@ -303,4 +303,15 @@ def saveimgsforYolo(selected_cluster_n,labels):
                     f.write(f"0 {x_yolo} {y_yolo} {w_yolo} {h_yolo}\n")
     newds.close()
     
+   
+def yolodetection(iter_round, img_path):
+    #remove the dir if it there
+    yoloprediction_dir=os.path.join(yolodir,'prediction')
+    if(os.path.exists(yoloprediction_dir)):
+        shutil.rmtree(yoloprediction_dir)
+    os.makedirs(yoloprediction_dir)
+
+   
+    print('detecting yolo')
     
+    detect.run(source = img_path,project=os.path.abspath(os.path.join(yoloprediction_dir,"itr_"+str(iter_round))),data="../wsi-wmeansclustering/output/test/yolotrain/training/dataset.yaml",imgsz=(267,267),weights="../wsi-wmeansclustering/output/test/yolotrain/training/itr_0/exp/weights/best.pt")
