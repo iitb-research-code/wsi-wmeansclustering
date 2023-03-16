@@ -5,7 +5,7 @@ import numpy as np
 import os
 from PIL import Image,ImageDraw, ImageFont
 import math
-from yolov5 import train
+from yolov5 import train, detect
 from yolov5.models.common import DetectMultiBackend
 from yolov5.utils.torch_utils import select_device
 from roi_selection import selectBrownScoreBasedROIs
