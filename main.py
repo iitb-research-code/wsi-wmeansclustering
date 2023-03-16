@@ -11,7 +11,7 @@ import torch
 from sklearn.cluster import KMeans
 from wc_utils import visualizeWeakbboxes, weakLabeling, visualizeIndividualClusterinDir, saveimgsforYolo
  #train on yolo
-from wc_utils import trainyolo
+from wc_utils import trainyolo, yolodetection
 import os, shutil, random
 
 
