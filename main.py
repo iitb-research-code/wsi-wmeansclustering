@@ -11,7 +11,7 @@ import torch
 from sklearn.cluster import KMeans
 from wc_utils import visualizeWeakbboxes, weakLabeling, visualizeIndividualClusterinDir, saveimgsforYolo
  #train on yolo
-from wc_utils import trainyolo, yolodetection
+from wc_utils import trainyolo, yolodetection,yoloLabeling
 import os, shutil, random
 
 
@@ -31,12 +31,17 @@ selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
 selected_labels=ds['y'][:numofimages]
 
 for i in range(num_of_epochs):
-
     #if weaklabeling not done, please do
-    if(os.path.isfile(susbseth5file)==False):
+    #other way of saying, do weak labeling for first iteration
+    
+    
+    #if(os.path.isfile(susbseth5file)==False):
+    if(i==0):
+        print('Weak Labeling and its feature extraction in Progress:')
         weakLabeling(selected_imgs,selected_labels)
-    #else:
-        #yoloLabeling(selected_imgs,selected_labels)
+    else:
+        print('Yolo labeling and its feature extraction in Progress:')
+        yoloLabeling(i,i*numofimages)
 
 
    
@@ -60,7 +65,8 @@ for i in range(num_of_epochs):
     # Convert the list of feature vectors to a numpy array
     all_weak_features = np.array(all_weak_features)
     
-        
+    print('Clustering %d ROIs into %d clusters'%(len(all_weak_features),n_clusters))
+
     # Perform K-means clustering on the feature vectors
     labels = KMeans(n_clusters=n_clusters, random_state=0).fit_predict(all_weak_features)
 
@@ -82,6 +88,6 @@ for i in range(num_of_epochs):
     trainyolo(i)
     
     #infer on yolo
-    img_path = "../wsi-wmeansclustering/output/test/yolotrain/images"
-    yolodetection(i,img_path)
+    yolodetection(i)
+    
 

@@ -10,7 +10,7 @@ from yolov5.models.common import DetectMultiBackend
 from yolov5.utils.torch_utils import select_device
 from roi_selection import selectBrownScoreBasedROIs
 import torch
-
+from tqdm import tqdm
 '''
 used to visualize selected weakboxes for each path
 input:
@@ -100,22 +100,40 @@ def convert_yolo_bboxes(bounding_boxes,img_width,img_height):
         height = float(h) / img_height
         yolo_boxes.append([center_x, center_y, width, height])
 
-def yoloLabeling(itrno):
+def yoloLabeling(itrno:int,numofimages):
     newds=h5py.File(susbseth5file, 'r+')
     #check if its already there so to delete
     try:
-        yoloROIs=newds['yoloROIs']
-        del yoloROIs
+        
+        del newds['yoloROIs']
+        
         yoloROIs=newds.create_group('yoloROIs')
 
+    except ValueError as e:
+        print('error',e)
+        yoloROIs=newds.create_group('yoloROIs')
     except KeyError as e:
+        print('error',e)
         yoloROIs=newds.create_group('yoloROIs')
     
     device=select_device()
-    weights=yolodir=os.path.join(yolodir,'training','itr_'+str(itrno-1),'weights','best.pt')
+    weights=os.path.join(yolotraining_dir,'itr_'+str(itrno-1),'exp','weights','best.pt')
     data=os.path.join(yolodir,'training','dataset.yaml')
-    model = DetectMultiBackend(weights, device=device, dnn=False, data=data, fp16=False)
+    model = DetectMultiBackend(weights, device=device, dnn=False, fp16=False)
     
+    ds=h5py.File(lystoh5file, 'r')
+    selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
+    selected_labels=ds['y'][:numofimages]
+    print('Infereing for clustering later')
+    for i, img in enumerate(tqdm(selected_imgs)):
+        forim=yoloROIs.create_group('img_'+str(i))
+        im=Image.fromarray(img)
+        bounding_boxes = model.forward(im)
+        forim.create_dataset('bboxes',data=bounding_boxes)
+        print(forim)
+        print(newds['yoloROIs']['img_'+str(i)]['bboxes'])
+    newds.close()
+
 
 
 
@@ -142,7 +160,7 @@ def weakLabeling(selected_imgs,selected_labels):
 
     #groups for individual bboxes
 
-    for i, img in enumerate(selected_imgs):
+    for i, img in enumerate(tqdm(selected_imgs)):
         forim=indWeakROIs.create_group('img_'+str(i))
         selected_weak_bboxes=selectBrownScoreBasedROIs(img,brown_score_threshold)
         im=Image.fromarray(img)
@@ -176,22 +194,25 @@ def weakLabeling(selected_imgs,selected_labels):
         #bboxes_from_yolo=fromyolo(img)
         
 
-        print('For ',str(selected_imgs),'images there are ',len(selected_weak_bboxes),'weak bboxes')
+        #print('For ',str(selected_imgs),'images there are ',len(selected_weak_bboxes),'weak bboxes')
         forim.create_dataset('bboxes',data=selected_weak_bboxes)
         forim.create_dataset('features',data=feature_for_bboxes)
     newds.close()
 
 def trainyolo(iter_round):
-    #remove the dir if it there
-    yolotraining_dir=os.path.join(yolodir,'training')
-    if(os.path.exists(yolotraining_dir)):
-        shutil.rmtree(yolotraining_dir)
-    os.makedirs(yolotraining_dir)
+    yoloallimages=os.path.join(yoloalldata,'images')
+    yoloalltxt=os.path.join(yoloalldata,'txt')
+    yolotraining_data_dir=os.path.join(yolotraining_dir,'data')
+    #remove the splits as we will copy it separately
+    if(os.path.exists(yolotraining_data_dir)):
+        shutil.rmtree(yolotraining_data_dir)
+        
 
-    training_images_path = os.path.join(yolotraining_dir, 'training','images')
-    validation_images_path =os.path.join(yolotraining_dir, 'validation','images')
-    training_labels_path = os.path.join(yolotraining_dir, 'training','labels')
-    validation_labels_path =os.path.join(yolotraining_dir, 'validation','labels')
+    training_images_path = os.path.join(yolotraining_data_dir, 'training','images')
+    validation_images_path =os.path.join(yolotraining_data_dir, 'validation','images')
+    training_labels_path = os.path.join(yolotraining_data_dir, 'training','labels')
+    validation_labels_path =os.path.join(yolotraining_data_dir, 'validation','labels')
+    
     os.makedirs(training_images_path)
     os.makedirs(validation_images_path)
     os.makedirs(training_labels_path)
@@ -201,7 +222,7 @@ def trainyolo(iter_round):
 
     ext_len = len(extension_allowed)
 
-    for r, d, f in os.walk(yolodirimages):
+    for r, d, f in os.walk(yoloallimages):
         for file in f:
             if file.endswith(extension_allowed):
                 strip = file[0:len(file) - ext_len]      
@@ -214,12 +235,12 @@ def trainyolo(iter_round):
         strip = files[i]
                             
         image_file = strip + extension_allowed
-        src_image = os.path.join(yolodirimages,image_file)
+        src_image = os.path.join(yoloallimages,image_file)
 
         shutil.copy(src_image, training_images_path) 
                             
         annotation_file = strip + '.txt'
-        src_label = os.path.join(yolodirtxt,annotation_file)
+        src_label = os.path.join(yoloalltxt,annotation_file)
         shutil.copy(src_label, training_labels_path) 
 
     print("copying validation data")
@@ -227,11 +248,11 @@ def trainyolo(iter_round):
         strip = files[i]
                             
         image_file = strip + extension_allowed
-        src_image = os.path.join(yolodirimages,image_file)
+        src_image = os.path.join(yoloallimages,image_file)
         shutil.copy(src_image, validation_images_path) 
                             
         annotation_file = strip + '.txt'
-        src_label = os.path.join(yolodirtxt,annotation_file)
+        src_label = os.path.join(yoloalltxt,annotation_file)
         shutil.copy(src_label, validation_labels_path) 
 
     print("finished copying")
@@ -247,19 +268,23 @@ def trainyolo(iter_round):
 
     print('training yolo')
     
-    train.run(project=os.path.abspath(os.path.join(yolotraining_dir,"itr_"+str(iter_round))),data=os.path.join(yolotraining_dir,"dataset.yaml"),imgsz=267,epochs=50,batch_size=8,weights="yolov5s.pt")
+    train.run(project=os.path.abspath(os.path.join(yolotraining_dir,"itr_"+str(iter_round))),data=os.path.join(yolotraining_dir,"dataset.yaml"),imgsz=267,epochs=50,batch_size=32,weights="yolov5s.pt")
 
     
 
     
 def saveimgsforYolo(selected_cluster_n,labels):
+    
+    if(os.path.isdir(yoloalldata)):
+        shutil.rmtree(yoloalldata)
+    yoloallimages=os.path.join(yoloalldata,'images')
+    yoloalltxt=os.path.join(yoloalldata,'txt')
     newds=h5py.File(susbseth5file, 'r')
-    if(os.path.isdir(yolodir)):
-        shutil.rmtree(os.path.join(yolodir))
     
-    os.makedirs(yolodirimages)
     
-    os.makedirs(yolodirtxt)
+    os.makedirs(yoloallimages)
+    
+    os.makedirs(yoloalltxt)
     
     lcount=0
     for i,imgname in enumerate(newds['indROIs'].keys()):
@@ -275,7 +300,7 @@ def saveimgsforYolo(selected_cluster_n,labels):
                 if(not imgSaved):
                     imgSaved=True
                     #saveimage
-                    drawim.save(os.path.join(yolodirimages,imgname+'.jpg'))
+                    drawim.save(os.path.join(yoloallimages,imgname+'.jpg'))
                 x1, y1, x2, y2 = bbox
                 w = x2 - x1
                 h = y2 - y1
@@ -287,7 +312,7 @@ def saveimgsforYolo(selected_cluster_n,labels):
             lcount+=1
         if(imgSaved):
             # Define the path to the text file that will contain the YOLO format annotations
-            txt_file = os.path.join(yolodirtxt, imgname+'.txt')
+            txt_file = os.path.join(yoloalltxt, imgname+'.txt')
              # Open the text file for writing
             with open(txt_file, "w") as f:
         # Loop over the bounding box coordinates
@@ -304,14 +329,15 @@ def saveimgsforYolo(selected_cluster_n,labels):
     newds.close()
     
    
-def yolodetection(iter_round, img_path):
+def yolodetection(iter_round):
+    yoloallimages=os.path.join(yoloalldata,'images')
     #remove the dir if it there
     yoloprediction_dir=os.path.join(yolodir,'prediction')
     if(os.path.exists(yoloprediction_dir)):
         shutil.rmtree(yoloprediction_dir)
     os.makedirs(yoloprediction_dir)
-
+    weights=os.path.join(yolotraining_dir,'itr_'+str(iter_round),'exp','weights','best.pt')
    
     print('detecting yolo')
     
-    detect.run(source = img_path,project=os.path.abspath(os.path.join(yoloprediction_dir,"itr_"+str(iter_round))),data="../wsi-wmeansclustering/output/test/yolotrain/training/dataset.yaml",imgsz=(267,267),weights="../wsi-wmeansclustering/output/test/yolotrain/training/itr_0/exp/weights/best.pt")
+    detect.run(source = yoloallimages,project=os.path.abspath(os.path.join(yoloprediction_dir,"itr_"+str(iter_round))),data=os.path.join(yolotraining_dir,"dataset.yaml"),imgsz=(267,267),weights=weights)

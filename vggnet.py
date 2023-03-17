@@ -20,7 +20,7 @@ class VGGNet(VGG):
     self.fc_ranges = ((0, 2), (2, 5), (5, 7))
 
     if pretrained:
-      exec("self.load_state_dict(models.%s(pretrained=True).state_dict())" % model)
+      exec("self.load_state_dict(models.%s(weights='VGG19_Weights.DEFAULT').state_dict())" % model)
 
     if not requires_grad:
       for param in super().parameters():
