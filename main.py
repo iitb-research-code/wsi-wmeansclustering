@@ -30,7 +30,7 @@ ds=h5py.File(lystoh5file, 'r')
 selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
 selected_labels=ds['y'][:numofimages]
 
-for i in range(num_of_epochs):
+for i in range(0,num_of_epochs):
     #if weaklabeling not done, please do
     #other way of saying, do weak labeling for first iteration
     
@@ -60,6 +60,14 @@ for i in range(num_of_epochs):
     for roi in newds['indROIs'].keys():
         for j in newds['indROIs'][roi]['features'][:]:
             all_weak_features.append(j)
+    if(i>0):
+        for roi in newds['yoloROIs'].keys():
+            for j in newds['yoloROIs'][roi]['bboxes'][:]:
+                all_weak_bboxes.append(j)
+
+        for roi in newds['yoloROIs'].keys():
+            for j in newds['yoloROIs'][roi]['features'][:]:
+                all_weak_features.append(j)
 
 
     # Convert the list of feature vectors to a numpy array
@@ -71,7 +79,11 @@ for i in range(num_of_epochs):
     labels = KMeans(n_clusters=n_clusters, random_state=0).fit_predict(all_weak_features)
 
     #save clusters for checking- visual
-    visualizeIndividualClusterinDir(newds,labels)
+    if(i>0):
+        alsoYolo = True
+    else:
+        alsoYolo = False
+    visualizeIndividualClusterinDir(newds,labels,alsoYolo)
     newds.close()
 
     #

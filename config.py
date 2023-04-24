@@ -26,7 +26,7 @@ weakpatchoutputdir=os.path.join(visualizationdir,'weakpatch')
 
 susbseth5file=os.path.join(outputdir,'subset.h5')
 #number of images
-numofimages=1000
+numofimages=100
 brown_score_threshold=0
 n_clusters=2
 
@@ -38,7 +38,9 @@ extension_allowed = '.jpg'
 yolotraining_dir=os.path.join(yolodir,'training_details')
 if(os.path.exists(yolotraining_dir)):
     shutil.rmtree(yolotraining_dir)
-os.makedirs(yolotraining_dir)
+    #print('not removing')
+if not(os.path.exists(yolotraining_dir)):
+    os.makedirs(yolotraining_dir)
 
 split_percentage = 90   
 

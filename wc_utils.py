@@ -6,11 +6,16 @@ import os
 from PIL import Image,ImageDraw, ImageFont
 import math
 from yolov5 import train, detect
+from yolov5.detect import non_max_suppression
 from yolov5.models.common import DetectMultiBackend
 from yolov5.utils.torch_utils import select_device
 from roi_selection import selectBrownScoreBasedROIs
 import torch
 from tqdm import tqdm
+from yolov5.utils.augmentations import (Albumentations, augment_hsv, classify_albumentations, classify_transforms, copy_paste,
+                                 letterbox, mixup, random_perspective)
+
+
 '''
 used to visualize selected weakboxes for each path
 input:
@@ -39,7 +44,7 @@ def visualizeWeakbboxes():
         im.save(os.path.join(weakpatchoutputdir,imgname+'.jpg'))
     newds.close()
         
-def visualizeIndividualClusterinDir(newds,labels):
+def visualizeIndividualClusterinDir(newds,labels,alsoYolo):
     for cluster_n in range(n_clusters):
         if not os.path.exists(os.path.join(visualizationdir,'cluster_'+str(cluster_n))):
             os.makedirs(os.path.join(visualizationdir,'cluster_'+str(cluster_n)))
@@ -54,6 +59,21 @@ def visualizeIndividualClusterinDir(newds,labels):
             cropim=drawim.crop((x1, y1, x2, y2))
             cropim.save(os.path.join(visualizationdir,'cluster_'+str(labels[lcount]),imgname+'_'+str(lcount)+'.png'))
             lcount+=1
+        if(alsoYolo):
+            if not os.path.exists(os.path.join(visualizationdir,'yolo_cluster_'+str(cluster_n))):
+                os.makedirs(os.path.join(visualizationdir,'yolo_cluster_'+str(cluster_n)))
+            #check if imgname is in yoloROIs
+            if imgname not in newds['yoloROIs'].keys():
+                continue
+
+
+            for bbox in newds['yoloROIs'][imgname]['bboxes'][:]:
+                if lcount >= len(labels):
+                    continue
+                x1, y1, x2, y2 = bbox
+                cropim=drawim.crop((x1, y1, x2, y2))
+                cropim.save(os.path.join(visualizationdir,'yolo_cluster_'+str(labels[lcount]),imgname+'_'+str(lcount)+'.png'))
+                lcount+=1
     
     for cluster_n in range(n_clusters):
         visualizeclusterimgs(os.path.join(visualizationdir,'cluster_'+str(cluster_n)))
@@ -88,10 +108,19 @@ def visualizeclusterimgs(clusterImgDir):
     imname=clusterImgDir.split('/')[-1].split('.')[0]+'.jpg'
     plt.savefig(os.path.join(clusterImgDir,'..',imname))
 
+def yolo_to_x1y1x2y2(yolo_bbox):
+    x_center, y_center, width, height = yolo_bbox[0],yolo_bbox[1],yolo_bbox[2],yolo_bbox[3]
+    x1 = x_center - (width / 2)
+    y1 = y_center - (height / 2)
+    x2 = x_center + (width / 2)
+    y2 = y_center + (height / 2)
+    return x1, y1, x2, y2
+
+
 def convert_yolo_bboxes(bounding_boxes,img_width,img_height):
     yolo_boxes = []
     for box in bounding_boxes:
-        x1, y1, x2, y2 = box
+        x1, y1, x2, y2 = box[0],box[1],box[2],box[3]
         w = x2 - x1
         h = y2 - y1
         center_x = float(x1 + w/2) / img_width
@@ -99,7 +128,10 @@ def convert_yolo_bboxes(bounding_boxes,img_width,img_height):
         width = float(w) / img_width
         height = float(h) / img_height
         yolo_boxes.append([center_x, center_y, width, height])
+    
+    return yolo_boxes
 
+'''
 def yoloLabeling(itrno:int,numofimages):
     newds=h5py.File(susbseth5file, 'r+')
     #check if its already there so to delete
@@ -126,17 +158,139 @@ def yoloLabeling(itrno:int,numofimages):
     selected_labels=ds['y'][:numofimages]
     print('Infereing for clustering later')
     for i, img in enumerate(tqdm(selected_imgs)):
+        bounding_boxes_list=[]
+        feature_for_bboxes=[]
+        
+        img1 = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img1 = cv2.resize(img1, (416, 416))
+        img1 = img1.astype(np.float32)
+        img1 = img1 / 255.0
+        img1 = np.expand_dims(img1, axis=0)
+        img1 = torch.from_numpy(img1)
+        img1 = img1.permute(0, 3, 1, 2)
+        img1 = img1.to(device)
+        
+        
+        bounding_boxes = model(img1)
+        
+        bounding_boxes=non_max_suppression(bounding_boxes, 0.4, 0.45, None, False, max_det=1000)
+        bounding_boxes = bounding_boxes[0].tolist()
+
+        if len(bounding_boxes)<=0:
+            continue
+        
+        
+        for roi in bounding_boxes:
+             roi = yolo_to_x1y1x2y2(roi)
+             bounding_boxes_list.append(roi)
+             im=Image.fromarray(img)
+             x1, y1, x2, y2 = roi
+             cropim=im.crop((x1, y1, x2, y2))
+             #if total tize is less than 512 resize it to 23*23
+             if((x2-x1)*(y2-y1)<3000):
+                cropim=cropim.resize((35,35))
+             cropim=np.array(cropim)
+             bgrimg = cropim[:, :, ::-1]  # switch to BGR
+             bgrimg = np.transpose(bgrimg, (2, 0, 1)) / 255.
+             bgrimg[0] -= means[0]  # reduce B's mean
+             bgrimg[1] -= means[1]  # reduce G's mean
+             bgrimg[2] -= means[2]  # reduce R's mean
+             bgrimg = np.expand_dims(bgrimg, axis=0)
+             try:
+                if use_gpu:
+                    inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).cuda().float())
+                else:
+                    inputs = torch.autograd.Variable(torch.from_numpy(bgrimg).float())
+                d_hist = vgg_model(inputs)[pick_layer]
+                d_hist = np.sum(d_hist.data.cpu().numpy(), axis=0)
+                d_hist /= np.sum(d_hist)  # normalize
+                feature_for_bboxes.append(d_hist)
+             except Exception as e:
+                print('exception in getting features',e)
+                pass
+        if len(feature_for_bboxes)<=0:
+            continue
         forim=yoloROIs.create_group('img_'+str(i))
-        im=Image.fromarray(img)
-        bounding_boxes = model.forward(im)
+        forim.create_dataset('bboxes',data=bounding_boxes_list)
+        forim.create_dataset('features',data=feature_for_bboxes)
+        #print(forim)
+        #print(newds['yoloROIs']['img_'+str(i)]['bboxes'])
+    newds.close()
+
+'''
+
+
+def yoloLabeling(itrno:int,numofimages):
+    newds=h5py.File(susbseth5file, 'r+')
+    #check if its already there so to delete
+    try:
+        yoloROIs=newds['yoloROIs']
+        del newds['yoloROIs']
+        yoloROIs=newds.create_group('yoloROIs')
+
+    except KeyError as e:
+        yoloROIs=newds.create_group('yoloROIs')
+    
+    device=select_device()
+    weights=os.path.join(yolodir,'training','itr_'+str(0),'exp','weights','best.pt')
+    data=os.path.join(yolodir,'training','dataset.yaml')
+    model = DetectMultiBackend(weights, device=device, dnn=False, data=data, fp16=False)
+    # model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
+    ds=h5py.File(lystoh5file, 'r')
+    i=0
+    selected_imgs = ds['x'][:numofimages,16:-16,16:-16,:]
+    selected_labels=ds['y'][:numofimages]
+
+    #print(selected_labels[0])
+
+    first = True
+    # model.warmup(imgsz=(1 if model.pt or model.triton else 1, 3, *imgsz))
+    for i, img in enumerate(selected_imgs):
+        forim=yoloROIs.create_group('img_'+str(i))
+        # im=Image.fromarray(img)
+        im = letterbox(img, (288,288), stride=32, auto=True)[0]  # padded resize
+        im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        im = np.ascontiguousarray(im)
+
+        im = torch.from_numpy(im).to(model.device)
+        im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
+        im /= 255  # 0 - 255 to 0.0 - 1.0
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+
+        pred = model(im)
+        conf_thres=0.25  # confidence threshold
+        iou_thres=0.45  # NMS IOU threshold
+        max_det=1000
+        agnostic_nms=False
+        classes=None
+        pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+        bounding_boxes = []
+        for i, det in enumerate(pred):
+
+            gn = torch.tensor(img.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+
+            if len(det):
+                det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
+                for c in det[:, 5].unique():
+                    n = (det[:, 5] == c).sum()  # detections per class
+                    # s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+
+                # Write results
+                save_conf = False
+                for *xyxy, conf, cls in reversed(det):
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                    line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                    # with open(f'{txt_path}.txt', 'a') as f:
+                    #     f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                    # print(('%g ' * len(line)).rstrip() % line )
+                    bounding_boxes.append(list(line[1:]))
+            # first = False
+        # print(bounding_boxes)
         forim.create_dataset('bboxes',data=bounding_boxes)
         print(forim)
         print(newds['yoloROIs']['img_'+str(i)]['bboxes'])
     newds.close()
-
-
-
-
     
     
 
